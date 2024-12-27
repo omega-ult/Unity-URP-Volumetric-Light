@@ -70,6 +70,10 @@ public sealed class VolumetricFogRenderPass : ScriptableRenderPass
 
 	private static readonly int HalfResCameraDepthTextureId = Shader.PropertyToID("_HalfResCameraDepthTexture");
 	private static readonly int VolumetricFogTextureId = Shader.PropertyToID("_VolumetricFogTexture");
+	private static readonly int LightWeightId = Shader.PropertyToID("_LightWeight");
+
+	private static readonly int LightLimit = 256;
+	private float[] _lightWeight  = new float[LightLimit];
 
 	private Material downsampleDepthMaterial;
 	private Material volumetricFogMaterial;
@@ -162,6 +166,20 @@ public sealed class VolumetricFogRenderPass : ScriptableRenderPass
 
 			int frameCount = Time.renderedFrameCount % 64;
 			float absortion = 1.0f / fogVolume.attenuationDistance.value;
+			for (var index = 0; index < renderingData.lightData.visibleLights.Length; index++)
+			{
+				if (index >= LightLimit) break;
+				var light = renderingData.lightData.visibleLights[index];
+				var weight = light.light.GetComponent<VolumetricFogWeight>();
+				if (weight != null)
+				{
+					_lightWeight[index] = weight.weight;
+				}
+				else
+				{
+					_lightWeight[index] = 1.0f;
+				}
+			}
 
 			EnableMainLightContribution(volumetricFogMaterial, fogVolume.enableMainLightContribution.value);
 			EnableAdditionalLightsContribution(volumetricFogMaterial, fogVolume.enableAdditionalLightsContribution.value);
@@ -180,6 +198,7 @@ public sealed class VolumetricFogRenderPass : ScriptableRenderPass
 			volumetricFogMaterial.SetFloat(AdditionalLightsScatteringId, fogVolume.additionalLightsScattering.value);
 			volumetricFogMaterial.SetFloat(AdditionalLightsRadiusSqId, fogVolume.additionalLightsRadius.value * fogVolume.additionalLightsRadius.value);
 			volumetricFogMaterial.SetInteger(MaxStepsId, fogVolume.maxSteps.value);
+			volumetricFogMaterial.SetFloatArray(LightWeightId, _lightWeight);
 
 			Blitter.BlitCameraTexture(cmd, volumetricFogRenderRTHandle, volumetricFogRenderRTHandle, volumetricFogMaterial, 0);
 
@@ -377,6 +396,20 @@ public sealed class VolumetricFogRenderPass : ScriptableRenderPass
 
 			int frameCount = Time.renderedFrameCount % 64;
 			float absortion = 1.0f / fogVolume.attenuationDistance.value;
+			for (var index = 0; index < renderingData.lightData.visibleLights.Length; index++)
+			{
+				if (index > LightLimit) break;
+				var light = renderingData.lightData.visibleLights[index];
+				var weight = light.light.GetComponent<VolumetricFogWeight>();
+				if (weight != null)
+				{
+					_lightWeight[index] = weight.weight;
+				}
+				else
+				{
+					_lightWeight[index] = 1.0f;
+				}
+			}
 
 			Material volumetricFogMaterial = passData.material;
 			EnableMainLightContribution(volumetricFogMaterial, fogVolume.enableMainLightContribution.value);
@@ -397,6 +430,7 @@ public sealed class VolumetricFogRenderPass : ScriptableRenderPass
 			volumetricFogMaterial.SetFloat(AdditionalLightsScatteringId, fogVolume.additionalLightsScattering.value);
 			volumetricFogMaterial.SetFloat(AdditionalLightsRadiusSqId, fogVolume.additionalLightsRadius.value * fogVolume.additionalLightsRadius.value);
 			volumetricFogMaterial.SetInteger(MaxStepsId, fogVolume.maxSteps.value);
+			volumetricFogMaterial.SetFloatArray(LightWeightId, _lightWeight);
 		}
 		else if (stage == PassStage.CompositeFog)
 		{

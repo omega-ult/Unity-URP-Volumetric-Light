@@ -40,6 +40,7 @@ Shader "Hidden/VolumetricFog"
 
             #pragma vertex Vert
             #pragma fragment Frag
+            #define MAX_LIGHT 256
 
             int _FrameCount;
             uint _CustomAdditionalLightsCount;
@@ -56,6 +57,7 @@ Shader "Hidden/VolumetricFog"
             float _AdditionalLightsScattering;
             float _AdditionalLightsRadiusSq;
             int _MaxSteps;
+            float _LightWeight[MAX_LIGHT];
 
             // Gets the fog density at the given world height.
             float GetFogDensity(float posWSy)
@@ -98,8 +100,10 @@ Shader "Hidden/VolumetricFog"
                 // initialize the accumulated color from additional lights
                 float3 additionalLightsColor = float3(0.0, 0.0, 0.0);   
 
-                // loop differently throught lights in Forward+ while considering Forward and Deferred too
+                // loop differently through lights in Forward+ while considering Forward and Deferred too
                 LIGHT_LOOP_BEGIN(_CustomAdditionalLightsCount)
+                    // 0 is main light
+                    float weight = _LightWeight[lightIndex+1];
                     Light additionalLight = GetAdditionalPerObjectLight(lightIndex, currPosWS);
                     additionalLight.shadowAttenuation = AdditionalLightRealtimeShadow(lightIndex, currPosWS, additionalLight.direction);
 #if _LIGHT_COOKIES
@@ -126,7 +130,7 @@ Shader "Hidden/VolumetricFog"
                     newScattering = lerp(1.0, newScattering, additionalLightPos.w);
 
                     // accumulate the total color for additional lights
-                    additionalLightsColor += (additionalLight.color * (additionalLight.shadowAttenuation * additionalLight.distanceAttenuation * phaseAdditionalLight * density * newScattering));
+                    additionalLightsColor += weight * (additionalLight.color * (additionalLight.shadowAttenuation * additionalLight.distanceAttenuation * phaseAdditionalLight * density * newScattering));
                 LIGHT_LOOP_END
 
                 return additionalLightsColor;
