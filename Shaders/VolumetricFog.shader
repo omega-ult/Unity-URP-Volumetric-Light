@@ -104,6 +104,8 @@ Shader "Hidden/VolumetricFog"
                 LIGHT_LOOP_BEGIN(_CustomAdditionalLightsCount)
                     // 0 is main light
                     float weight = _LightWeight[lightIndex+1];
+                    if (weight <= 0.0)
+                        continue;
                     Light additionalLight = GetAdditionalPerObjectLight(lightIndex, currPosWS);
                     additionalLight.shadowAttenuation = AdditionalLightRealtimeShadow(lightIndex, currPosWS, additionalLight.direction);
 #if _LIGHT_COOKIES
